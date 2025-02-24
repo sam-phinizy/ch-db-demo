@@ -1,0 +1,12 @@
+[project]
+name = "ch-db-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "chdb>=3.0.0",
+    "faker>=36.1.1",
+    "jupyterlab>=4.3.5",
+    "polars>=1.23.0",
+]
