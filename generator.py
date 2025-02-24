@@ -35,25 +35,21 @@ class EcommerceDataGenerator:
 
     def _generate_hourly_sales(self, date: datetime, product: Dict) -> Dict:
         """Generate realistic hourly sales data for a product."""
-        # Add randomness but keep some patterns (e.g., more sales during day)
         hour = date.hour
         is_weekend = date.weekday() >= 5
         base_quantity = self.faker.random_int(0, 10)
 
-        # More sales during business hours (9-17)
         if 9 <= hour <= 17:
             base_quantity *= 2
 
-        # More sales on weekends
         if is_weekend:
             base_quantity = int(base_quantity * 1.5)
 
-        # Random price fluctuation
-        price_multiplier = self.faker.random_number(2) / 100 + 0.95  # 0.95 to 1.05
+        price_multiplier = self.faker.random_number(2) / 100 + 0.95
 
         return {
-            "event_time": date.isoformat(),  # Added event_time
-            "timestamp": date.isoformat(),  # Keeping timestamp for backward compatibility
+            "event_time": date.isoformat(),
+            "timestamp": date.isoformat(),
             "product_id": product["product_id"],
             "product_name": product["name"],
             "category": product["category"],
@@ -67,15 +63,20 @@ class EcommerceDataGenerator:
             "hour": hour,
         }
 
-    def generate_data(self, output_dir: str):
+    def generate_data(self, output_dir: str, category_first: bool = False):
         """Generate and save data for the entire date range."""
         current_date = self.start_date
+
+        # If category_first is True, prepend the base directory
+        if category_first:
+            output_dir = str(
+                Path(output_dir).parent / "category_first" / Path(output_dir).name
+            )
 
         while current_date <= self.end_date:
             for hour in range(24):
                 current_datetime = current_date.replace(hour=hour)
 
-                # Group products by category
                 products_by_category = {}
                 for product in self.products:
                     category = product["category"]
@@ -83,27 +84,38 @@ class EcommerceDataGenerator:
                         products_by_category[category] = []
                     products_by_category[category].append(product)
 
-                # Generate data for each category and product
                 for category, products in products_by_category.items():
+                    category_path = (
+                        category.lower().replace(" & ", "_and_").replace(" ", "_")
+                    )
+
                     for product in products:
-                        # Create directory structure with category
-                        dir_path = (
-                            Path(output_dir)
-                            / str(current_datetime.year)
-                            / f"{current_datetime.month:02d}"
-                            / f"{current_datetime.day:02d}"
-                            / f"{hour:02d}"
-                            / category.lower().replace(" & ", "_and_").replace(" ", "_")
-                        )
+                        # Create directory structure based on category_first flag
+                        if category_first:
+                            dir_path = (
+                                Path(output_dir)
+                                / category_path
+                                / str(current_datetime.year)
+                                / f"{current_datetime.month:02d}"
+                                / f"{current_datetime.day:02d}"
+                                / f"{hour:02d}"
+                            )
+                        else:
+                            dir_path = (
+                                Path(output_dir)
+                                / str(current_datetime.year)
+                                / f"{current_datetime.month:02d}"
+                                / f"{current_datetime.day:02d}"
+                                / f"{hour:02d}"
+                                / category_path
+                            )
 
                         dir_path.mkdir(parents=True, exist_ok=True)
 
-                        # Generate hourly data
                         sales_data = self._generate_hourly_sales(
                             current_datetime, product
                         )
 
-                        # Use product name for the file name
                         file_name = f"{product['name'].replace(' ', '_').lower()}.json"
                         file_path = dir_path / file_name
 
@@ -133,6 +145,11 @@ def main():
         default="./ecommerce_data",
         help="Output directory (default: ./ecommerce_data)",
     )
+    parser.add_argument(
+        "--category-first",
+        action="store_true",
+        help="Use category as the first level in the directory structure",
+    )
 
     args = parser.parse_args()
 
@@ -142,7 +159,7 @@ def main():
         num_products=args.products, num_months=args.months, end_date=end_date
     )
 
-    generator.generate_data(args.output_dir)
+    generator.generate_data(args.output_dir, args.category_first)
 
 
 if __name__ == "__main__":
